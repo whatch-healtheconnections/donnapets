@@ -23,6 +23,7 @@ jobs:
   deploy:
     name: Deploy to S3 + Invalidate CloudFront
     runs-on: ubuntu-latest
+    environment: prod
 
     steps:
       - name: Checkout
