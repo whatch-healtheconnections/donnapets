@@ -23,6 +23,7 @@ jobs:
   plan:
     name: Terraform Plan
     runs-on: ubuntu-latest
+    environment: prod
     if: github.event_name == 'pull_request'
 
     steps:
@@ -69,6 +70,7 @@ jobs:
   apply:
     name: Terraform Apply
     runs-on: ubuntu-latest
+    environment: prod
     if: github.event_name == 'push'
 
     steps:
