@@ -1,0 +1,62 @@
+name: Deploy Site
+
+on:
+  push:
+    branches: [prod]
+    paths:
+      - 'index.html'
+      - 'css/**'
+      - 'js/**'
+      - '*.png'
+      - '*.jpeg'
+      - '*.jpg'
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+  S3_BUCKET: donnaspersonalpetcare.com
+
+jobs:
+  deploy:
+    name: Deploy to S3 + Invalidate CloudFront
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Sync site files to S3
+        run: |
+          aws s3 sync . "s3://$S3_BUCKET" \
+            --delete \
+            --exclude "*" \
+            --include "index.html" \
+            --include "css/*" \
+            --include "js/*" \
+            --include "*.png" \
+            --include "*.jpeg" \
+            --include "*.jpg"
+
+      - name: Get CloudFront distribution ID
+        id: cf
+        run: |
+          DIST_ID=$(aws cloudfront list-distributions \
+            --query "DistributionList.Items[?Aliases.Items[?contains(@,'donnaspersonalpetcare.com')]].Id | [0]" \
+            --output text)
+          echo "dist_id=$DIST_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Invalidate CloudFront cache
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id "${{ steps.cf.outputs.dist_id }}" \
+            --paths "/*" \
+            --no-cli-pager
